@@ -1,15 +1,45 @@
 import Token from "./token.js";
 
-class Lexer {
+class Tokenizer {
 
-    constructor() {
-
+    /**
+     * Initialize buffer and token array
+     */
+    initialize() {
+        this.buffer = "";
+        this.tokens = [];
     }
 
-    analyze(text) {
-        var tokens = this.tokenize(text);
+    /**
+     * Buffer write
+     */
+    write(char) {
+        this.buffer += char;
+    }
 
+    /** 
+     * Buffer flush
+     */
+    flush() {
+        if (this.buffer.length > 0) {
+            this.tokens.push(new Token(type, this.buffer));
+            this.buffer = "";
+        }
+    }
 
+    /** 
+     * Remove/unify unsupported characters.
+     */
+    purify(text) {
+
+        // Unify whitespace formats
+        text = text.replace(/\s/g, " ");
+
+        return text;
+    }
+
+    identify(data) {
+        
     }
 
     /**
@@ -17,19 +47,10 @@ class Lexer {
      */
     tokenize(text) {
 
-        // Unify whitespace format
-        text = text.replace(/\s/g, " ");
+        this.initialize();
 
-        let tokens = [];
-        let buffer = "";
-
-        // buffer flush
-        function flush() {
-            if (buffer.length > 0) {
-                tokens.push(buffer);
-                buffer = "";
-            }
-        }
+        // Purify
+        text = this.purify(text);
 
         // Space flags
         let spaceFlag = false;
@@ -46,7 +67,7 @@ class Lexer {
             if (char == " " && !stringOpened) {
                 if (!spaceFlag) {
                     spaceFlag = true;
-                    flush();
+                    this.flush();
                 }
                 // Space is non-insertive
                 continue;
@@ -57,11 +78,11 @@ class Lexer {
             // Parens as delemiter
             if ((char == "(" || char == ")") && !stringOpened) {
                 if (char == "(") {
-                    buffer += char;
-                    flush();
+                    this.write(char);
+                    this.flush();
                 } else {
-                    flush();
-                    buffer += char;
+                    this.flush();
+                    this.write(char);
                 }
                 continue;
             }
@@ -73,35 +94,28 @@ class Lexer {
                 if (!stringOpened) {
                     stringOpener = char;
                     stringOpened = true;
-                    flush();
-                    buffer += char;
+                    this.flush();
+                    this.write(char);
                     continue;
                 }
                 // String close
                 else if (stringOpener == char) {
                     stringOpened = false;
-                    buffer += char;
-                    flush();
+                    this.write(char);
+                    this.flush();
                     continue;
                 }
             }
 
             // Write buffer
-            buffer += char;
+            this.write(char);
         }
         // Last flush
-        flush();
+        this.flush();
 
-        return syllables;
+        return this.tokens;
     }
+
 }
 
-export default Lexer;
-
-let lexer = new Lexer();
-console.log(lexer.analyze(`
-    (define factorial n (
-    (if (< n 2      ) (1) 
-        (* n (factorial (- n 1))))
-)) 
-    `));
+export default Tokenizer;
