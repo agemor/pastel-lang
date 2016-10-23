@@ -1,86 +1,141 @@
 import Token from "./token.js";
-import Tokenizer from "./tokenizer.js";
-import Node from "./node.js";
-import Error from "./error.js";
 
 class Lexer {
 
-    constructor() {
-        this.tokenizer = new Tokenizer();
+    /**
+     * Initialize buffer and token array
+     */
+    initialize() {
+        this.buffer = "";
+        this.tokens = [];
+        this.currentLocation = [0, ""];
     }
 
     /**
-     * Create syntax tree
+     * Buffer write
+     */
+    write(char) {
+        this.buffer += char;
+    }
+
+    /** 
+     * Buffer flush
+     */
+    flush() {
+        if (this.buffer.length > 0) {
+            let type = this.identify(this.buffer);
+            this.tokens.push(new Token(type, this.buffer, this.currentLocation));
+            this.buffer = "";
+        }
+    }
+
+    /** 
+     * Remove/unify unsupported characters.
+     */
+    purify(text) {
+
+        // Unify newline formats
+        text = text.replace(/(?:\r\n|\r|\n)/g, ';');
+
+        // Unify whitespace formats
+        text = text.replace(/\s/g, " ");
+
+        return text;
+    }
+
+    /**
+     * Identify token type
+     */
+    identify(data) {
+        if (data == "(") return Token.OPEN;
+        else if (data == ")") return Token.CLOSE;
+        else if (!isNaN(data)) return Token.NUMBER;
+        else if (data.charAt(0) == "\"" || data.charAt(0) == "\'") return Token.STRING;
+        else return Token.ID;
+    }
+
+    /**
+     * Split code by syllables
      */
     analyze(text) {
 
-        let tokenArray = this.tokenizer.tokenize(text);
-        let tokenTree = this.treefy(tokenArray);
+        this.initialize();
 
-        return tokenTree;
-    }
+        // Purify
+        text = this.purify(text);
 
-    /**
-     * Convert 1-d token array to 2-d tree
-     */
-    treefy(tokenArray) {
+        // Space flags
+        let spaceFlag = false;
 
-        // Parent tree
-        let tree = new Node();
+        // String flags
+        let stringOpened = false;
+        let stringOpener = "";
 
-        let index = 0;
-        let depth = 0;
-        let subarray = [];
+        for (let i in text) {
 
-        while (index < tokenArray.length) {
+            let char = text.charAt(i);
 
-            let token = tokenArray[index++];
-
-            // Open
-            if (token.type == Token.OPEN) {
-                subarray = [];
-                depth++;
+            // Update line data
+            if (char == ";" && !stringOpened) {
+                this.currentLocation[0] ++;
+                this.currentLocation[1] = "";
+            } else {
+                this.currentLocation[1] += char;
             }
 
-            // Close
-            else if (token.type == Token.CLOSE) {
-
-                depth--;
-
-                // Depth cannot be smaller than 0
-                if (depth < 0)
-                    return new Error(Error.SYNTAX, "Surplus ')' exists", token.location);
-
-                // Create sub-tree
-                let subtree = this.treefy(subarray);
-
-                // If error, just pass beyond (no stack push)
-                if (subtree instanceof Error)
-                    return subtree;
-
-                tree.addChild(subtree);
-
+            // Space is delimiter
+            if (char == " " && !stringOpened) {
+                if (!spaceFlag) {
+                    spaceFlag = true;
+                    this.flush();
+                }
+                // Space is non-insertive
+                continue;
+            } else {
+                spaceFlag = false;
             }
 
-            // Direct (siblings) token
-            else if (depth == 0) {
-                tree.addChild(new Node(token));
-            } 
-
-            // Subarray (children) token
-            else if (depth > 0) {
-                subarray.push(token);
+            // Parens as delemiter
+            if ((char == "(" || char == ")") && !stringOpened) {
+                if (char == "(") {
+                    this.write(char);
+                    this.flush();
+                } else {
+                    this.flush();
+                    this.write(char);
+                }
+                continue;
             }
+
+            // Bundle up strings as delimiter
+            if (char == "\"" || char == "\'") {
+
+                // String open
+                if (!stringOpened) {
+                    stringOpener = char;
+                    stringOpened = true;
+                    this.flush();
+                    this.write(char);
+                    continue;
+                }
+                // String close
+                else if (stringOpener == char) {
+                    stringOpened = false;
+                    this.write(char);
+                    this.flush();
+                    continue;
+                }
+            }
+
+            // Write buffer
+            this.write(char);
         }
+        // Last flush
+        this.flush();
 
-        // Depth must be 0 at the termination point
-        if (depth > 0)
-            return new Error(Error.SYNTAX, "'(' not closed", tokenArray[tokenArray.length - 1].location);
-
-        return tree;
+        return this.tokens;
     }
 
-    
 }
 
 export default Lexer;

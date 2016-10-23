@@ -1,6 +1,6 @@
 import Token from "./token.js";
-import Tokenizer from "./tokenizer.js";
 import Lexer from "./lexer.js";
+import Parser from "./parser.js";
 
 
 var lexer = new Lexer();
