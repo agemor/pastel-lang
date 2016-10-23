@@ -8,6 +8,7 @@ class Tokenizer {
     initialize() {
         this.buffer = "";
         this.tokens = [];
+        this.currentLocation = [0, ""];
     }
 
     /**
@@ -23,7 +24,7 @@ class Tokenizer {
     flush() {
         if (this.buffer.length > 0) {
             let type = this.identify(this.buffer);
-            this.tokens.push(new Token(type, this.buffer));
+            this.tokens.push(new Token(type, this.buffer, this.currentLocation));
             this.buffer = "";
         }
     }
@@ -32,6 +33,9 @@ class Tokenizer {
      * Remove/unify unsupported characters.
      */
     purify(text) {
+
+        // Unify newline formats
+        text = text.replace(/(?:\r\n|\r|\n)/g, ';');
 
         // Unify whitespace formats
         text = text.replace(/\s/g, " ");
@@ -70,6 +74,14 @@ class Tokenizer {
         for (let i in text) {
 
             let char = text.charAt(i);
+
+            // Update line data
+            if (char == ";" && !stringOpened) {
+                this.currentLocation[0] ++;
+                this.currentLocation[1] = "";
+            } else {
+                this.currentLocation[1] += char;
+            }
 
             // Space is delimiter
             if (char == " " && !stringOpened) {
