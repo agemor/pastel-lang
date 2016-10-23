@@ -22,6 +22,7 @@ class Tokenizer {
      */
     flush() {
         if (this.buffer.length > 0) {
+            let type = this.identify(this.buffer);
             this.tokens.push(new Token(type, this.buffer));
             this.buffer = "";
         }
@@ -38,8 +39,15 @@ class Tokenizer {
         return text;
     }
 
+    /**
+     * Identify token type
+     */
     identify(data) {
-        
+        if (data == "(") return Token.OPEN;
+        else if (data == ")") return Token.CLOSE;
+        else if (!isNaN(data)) return Token.NUMBER;
+        else if (data.charAt(0) == "\"" || data.charAt(0) == "\'") return Token.STRING;
+        else return Token.ID;
     }
 
     /**

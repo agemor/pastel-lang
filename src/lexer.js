@@ -1,4 +1,5 @@
 import Token from "./token.js";
+import Tokenizer from "./tokenizer.js";
 
 class Lexer {
 
