@@ -1,0 +1,25 @@
+{
+  "name": "pastel",
+  "version": "1.0.0",
+  "description": "Pastel Compiler",
+  "main": "./src/main.js",
+  "directories": {
+    "example": "examples"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/agemor/pastel.git"
+  },
+  "author": "HyunJun Kim",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/agemor/pastel/issues"
+  },
+  "homepage": "https://github.com/agemor/pastel#readme",
+  "devDependencies": {
+    "babel-preset-es2015": "^6.16.0"
+  }
+}
