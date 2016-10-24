@@ -99,13 +99,9 @@ class Lexer {
 
             // Parens as delemiter
             if ((char == "(" || char == ")") && !stringOpened) {
-                if (char == "(") {
-                    this.write(char);
-                    this.flush();
-                } else {
-                    this.flush();
-                    this.write(char);
-                }
+                this.flush();
+                this.write(char);
+                this.flush();
                 continue;
             }
 
