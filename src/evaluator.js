@@ -14,8 +14,13 @@ class Evaluator {
 
     evaluateText(text) {
         let node = this.parser.analyze(text);
-        console.log(node);
 
+        if (node instanceof Error) {
+            console.log(node.message);
+            return node;
+        }
+
+        this.parser.viewTree(node);
         return this.evaluateNode(node);
     }
 
@@ -148,9 +153,9 @@ class Evaluator {
                 } else {
                     clauseValue = undefined;
                 }
+
                 return clauseValue;
             }
-
 
             // 함수 체크
             if (head in this.definition) {
@@ -183,6 +188,7 @@ class Evaluator {
 
                     // 그대로 인수로 넘긴다.
                     list.shift();
+
                     let value = this.definition[head](list);
                     if (value instanceof Error)
                         return value.after(children[0].getData().location);
@@ -191,10 +197,14 @@ class Evaluator {
                 }
             }
 
-            // 리스트
-            return list;
+            // 리스트. 값을 최대한 깐다(pill)
+            if (list.length == 1)
+                return list[0];
+            else 
+                return list;
         }
     }
+
 
     defineBasicFunctions() {
 
@@ -236,7 +246,7 @@ class Evaluator {
         this.definition["^"]  = function(args) { return cumulative(args, (a, b) => { return a ^ b; }, 2); };
         this.definition["<<"] = function(args) { return cumulative(args, (a, b) => { return a << b; }, 2); };
         this.definition[">>"] = function(args) { return cumulative(args, (a, b) => { return a >> b; }, 2); };
-        this.definition["~"]  = function(args) { return ~args; };
+        this.definition["~"]  = function(args) { return ~args[0]; };
         this.definition["="]  = function(args) { return decisive(args, (a, b) => { return a == b; }, 2); };
         this.definition["!="] = function(args) { return decisive(args, (a, b) => { return a != b; }, 2); };
         this.definition["<"]  = function(args) { return decisive(args, (a, b) => { return a < b; }, 2); };
@@ -245,7 +255,8 @@ class Evaluator {
         this.definition[">="] = function(args) { return decisive(args, (a, b) => { return a >= b; }, 2); };
         this.definition["&&"] = function(args) { return decisive(args, (a, b) => { return a && b; }, 2); };
         this.definition["||"] = function(args) { return decisive(args, (a, b) => { return a || b; }, 2); };
-        this.definition["!"]  = function(args) { return !args; };
+        this.definition["!"]  = function(args) { return !args[0]; };
+        this.definition["print"]  = function(args) { console.log(args[0]); return args[0]; };
         this.definition["add"]      = this.definition["+"];
         this.definition["subtract"] = this.definition["-"];
         this.definition["multiply"] = this.definition["*"];

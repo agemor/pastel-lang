@@ -23,8 +23,9 @@ class Lexer {
      */
     flush() {
         if (this.buffer.length > 0) {
+
             let type = this.identify(this.buffer);
-            this.tokens.push(new Token(type, this.buffer, this.currentLocation));
+            this.tokens.push(new Token(type, this.buffer, this.currentLocation.slice(0)));
             this.buffer = "";
         }
     }
@@ -38,7 +39,7 @@ class Lexer {
         text = text.replace(/(?:\r\n|\r|\n)/g, ';');
 
         // Unify whitespace formats
-        text = text.replace(/\s/g, " ");
+        text = text.replace(/\s/gi, " ");
 
         return text;
     }
@@ -79,6 +80,7 @@ class Lexer {
             if (char == ";" && !stringOpened) {
                 this.currentLocation[0] ++;
                 this.currentLocation[1] = "";
+                continue;
             } else {
                 this.currentLocation[1] += char;
             }

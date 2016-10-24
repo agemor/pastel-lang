@@ -5,7 +5,10 @@ import Evaluator from "./evaluator.js";
 
 
 let evaluator = new Evaluator();
-let value = evaluator.evaluateText("(((+ 1 1)))");
+let value = evaluator.evaluateText(`
 
-console.log("Evaluated value:");
-console.log(value);
+
+	print (+ (if (> 2 3)	
+				 (1) (20)
+			  ) 3
+		  )`);
