@@ -1,12 +1,14 @@
 class Error {
 	constructor(type, message, location) {
+		this.self = this;
 		this.type = type;
 		this.message = message;
 		this.stack = [location];
 	}
 
-	addStack(location) {
+	after(location) {
 		this.stack.push(location);
+		return this.self;
 	}
 }
 

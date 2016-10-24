@@ -15,6 +15,10 @@ class Node {
         return this.data;   
     }
 
+    hasChildren() {
+        return this.children.length > 0;
+    }
+
     getChildren() {
         return this.children;
     }
