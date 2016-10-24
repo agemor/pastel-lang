@@ -1,4 +1,5 @@
 class Error {
+	
 	constructor(type, message, location) {
 		this.self = this;
 		this.type = type;

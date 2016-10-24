@@ -4,7 +4,7 @@
 
 class Token {
     
-    constructor(type, data = undefined, location = undefined) {
+    constructor(type , data = undefined, location = undefined) {
         this.type = type;
         this.data = data;
         this.location = location;
@@ -16,10 +16,10 @@ class Token {
 let tokenId = 0;
 
 // Define token types
-Token.OPEN   = tokenId++;
-Token.CLOSE  = tokenId++;
-Token.ID     = tokenId++;
-Token.STRING = tokenId++;
-Token.NUMBER = tokenId++;
+Token.OPEN      = tokenId++;
+Token.CLOSE     = tokenId++;
+Token.ID        = tokenId++;
+Token.STRING    = tokenId++;
+Token.NUMBER    = tokenId++;
 
 export default Token;

@@ -9,25 +9,28 @@ class Evaluator {
         this.parser = new Parser();
         this.definition = new Object();
 
-        defineBasicFunctions();
+        this.defineBasicFunctions();
     }
 
     evaluateText(text) {
         let node = this.parser.analyze(text);
-        return evaluateNode(node);
+        console.log(node);
+
+        return this.evaluateNode(node);
     }
 
     evaluateNode(node, parameters) {
 
         // 만약 자식이 없는 노드라면, 데이터 추출
-        if (node.hasChildren()) {
+        if (!node.hasChildren()) {
             let token = node.getData();
+            //console.log(token);
             if (token.type == Token.NUMBER) {
                 return Number(token.data);
             } else {
 
                 // 파라미터 체크 (파라미터가 정의보다 우선순위)
-                if (token.data in parameters) {
+                if (parameters != null && token.data in parameters) {
                     return parameters[token.data];
                 }
 
@@ -52,7 +55,7 @@ class Evaluator {
             let children = node.getChildren();
             
             // 첫번째는 무조건 serialize
-            let head = evaluateNode(children[0]);
+            let head = this.evaluateNode(children[0]);
             if (head instanceof Error)
                 return head.after(children[0].getData().location);
             let list = [head];
@@ -63,7 +66,7 @@ class Evaluator {
                     return new Error(Error.SYNTAX, "Define clause needs at least 3 parameters", children[0].getData().location);
                 
                 // 이름 가져오기. 이름은 run-time에 explicit 해야 함
-                let name = evaluateNode(children[1]);
+                let name = this.evaluateNode(children[1]);
                 if (name instanceof Error)
                     return name.after(children[1].getData().location);
 
@@ -75,7 +78,7 @@ class Evaluator {
                 if (children.length > 3) {
 
                     // 파라미터 가져오기. 파라미터 배열은 무조건 linear id 배열 형태여야 함.
-                    let parameters = evaluateNode(children[2]); // 배열 리턴
+                    let parameters = this.evaluateNode(children[2]); // 배열 리턴
                     if (parameters instanceof Error)
                         return parameters.after(children[2].getData().location);
 
@@ -106,7 +109,7 @@ class Evaluator {
             // 만약 late-serialize 문, 즉 if 가 아니면 나머지도 serialize
             if (list[0] != "if") {
                 for (let i = 1; i < children.length; i++) {
-                    let body = evaluateNode(children[i]);
+                    let body = this.evaluateNode(children[i]);
                     if (body instanceof Error)
                         return body.after(children[i].getData().location);
                     list.push(body);
@@ -121,7 +124,7 @@ class Evaluator {
                     return new Error(Error.SYNTAX, "If clause needs at least 3 parameters", children[0].getData().location);
 
                 // 두 번째 인수 평가
-                let conditional = evaluateNode(children[1]);
+                let conditional = this.evaluateNode(children[1]);
                 if (conditional instanceof Error)
                     return conditional.after(children[1].getData().location);
 
@@ -130,7 +133,7 @@ class Evaluator {
                 // 만약 참이면
                 if (conditional) {
                     // 세 번째 인수 평가
-                    let trueClause = evaluateNode(children[2]);
+                    let trueClause = this.evaluateNode(children[2]);
                     if (trueClause instanceof Error)
                         return trueClause.after(children[2].getData().location);
                     clauseValue = trueClause;
@@ -138,7 +141,7 @@ class Evaluator {
 
                 // 거짓이면
                 else if (children.length > 3) {
-                    let falseCluase = evaluateNode(children[3]);
+                    let falseCluase = this.evaluateNode(children[3]);
                     if (falseCluase instanceof Error)
                         return falseCluase.after(children[3].getData().location);
                     clauseValue = falseCluase;
@@ -168,7 +171,7 @@ class Evaluator {
                     }
 
                     // 값 계산
-                    let value = evaluateNode(this.definition[head][1], parameterMap);
+                    let value = this.evaluateNode(this.definition[head][1], parameterMap);
                     if (value instanceof Error)
                         return value.after(children[0].getData().location);
 
@@ -197,14 +200,14 @@ class Evaluator {
 
         function checkParameters(operands, minimum, maximum) {
             if (operands.length < minimum) {
-                return Error(Error.SYNTAX, "At least " + minimum + " parameters are required");
+                return new Error(Error.SYNTAX, "At least " + minimum + " parameters are required");
             } else if (operands.length > maximum) {
-                return Error(Error.SYNTAX, "Number of function parameters must be under " + maximum);
+                return new Error(Error.SYNTAX, "Number of function parameters must be under " + maximum);
             }
             return null;
         }
         function cumulative(operands, operator, minimum = 1, maximum = 10000) {
-            let isError = check(operands, minimum, maximum);
+            let isError = checkParameters(operands, minimum, maximum);
             if (isError instanceof Error) return isError; 
             let value = 0;
             for (let i = 0; i < operands.length; i++)
@@ -212,7 +215,7 @@ class Evaluator {
             return value;
         }
         function decisive(operands, operator, minimum = 1, maximum = 10000) {
-            let isError = check(operands, minimum, maximum);
+            let isError = checkParameters(operands, minimum, maximum);
             if (isError instanceof Error) return isError;
             let head = operands[0];
             for (let i = 1; i < operands.length; i++) {
@@ -223,26 +226,26 @@ class Evaluator {
             return true;
         }
 
-        this.definition["+"]  = function() { return cumulative(arguments, (a, b) => { return a + b; }, 2); };
-        this.definition["-"]  = function() { return cumulative(arguments, (a, b) => { return a - b; }, 2); };
-        this.definition["*"]  = function() { return cumulative(arguments, (a, b) => { return a * b; }, 2); };
-        this.definition["/"]  = function() { return cumulative(arguments, (a, b) => { return a / b; }, 2); };
-        this.definition["%"]  = function() { return cumulative(arguments, (a, b) => { return a % b; }, 2, 2); };
-        this.definition["&"]  = function() { return cumulative(arguments, (a, b) => { return a & b; }, 2); };
-        this.definition["|"]  = function() { return cumulative(arguments, (a, b) => { return a | b; }, 2); };
-        this.definition["^"]  = function() { return cumulative(arguments, (a, b) => { return a ^ b; }, 2); };
-        this.definition["<<"] = function() { return cumulative(arguments, (a, b) => { return a << b; }, 2); };
-        this.definition[">>"] = function() { return cumulative(arguments, (a, b) => { return a >> b; }, 2); };
-        this.definition["~"]  = function(a) { return ~a; };
-        this.definition["="]  = function() { return decisive(arguments, (a, b) => { return a == b; }, 2); };
-        this.definition["!="] = function() { return decisive(arguments, (a, b) => { return a != b; }, 2); };
-        this.definition["<"]  = function() { return decisive(arguments, (a, b) => { return a < b; }, 2); };
-        this.definition[">"]  = function() { return decisive(arguments, (a, b) => { return a > b; }, 2); };
-        this.definition["<="] = function() { return decisive(arguments, (a, b) => { return a <= b; }, 2); };
-        this.definition[">="] = function() { return decisive(arguments, (a, b) => { return a >= b; }, 2); };
-        this.definition["&&"] = function() { return decisive(arguments, (a, b) => { return a && b; }, 2); };
-        this.definition["||"] = function() { return decisive(arguments, (a, b) => { return a || b; }, 2); };
-        this.definition["!"]  = function(a) { return !a; };
+        this.definition["+"]  = function(args) { return cumulative(args, (a, b) => { return a + b; }, 2); };
+        this.definition["-"]  = function(args) { return cumulative(args, (a, b) => { return a - b; }, 2); };
+        this.definition["*"]  = function(args) { return cumulative(args, (a, b) => { return a * b; }, 2); };
+        this.definition["/"]  = function(args) { return cumulative(args, (a, b) => { return a / b; }, 2); };
+        this.definition["%"]  = function(args) { return cumulative(args, (a, b) => { return a % b; }, 2, 2); };
+        this.definition["&"]  = function(args) { return cumulative(args, (a, b) => { return a & b; }, 2); };
+        this.definition["|"]  = function(args) { return cumulative(args, (a, b) => { return a | b; }, 2); };
+        this.definition["^"]  = function(args) { return cumulative(args, (a, b) => { return a ^ b; }, 2); };
+        this.definition["<<"] = function(args) { return cumulative(args, (a, b) => { return a << b; }, 2); };
+        this.definition[">>"] = function(args) { return cumulative(args, (a, b) => { return a >> b; }, 2); };
+        this.definition["~"]  = function(args) { return ~args; };
+        this.definition["="]  = function(args) { return decisive(args, (a, b) => { return a == b; }, 2); };
+        this.definition["!="] = function(args) { return decisive(args, (a, b) => { return a != b; }, 2); };
+        this.definition["<"]  = function(args) { return decisive(args, (a, b) => { return a < b; }, 2); };
+        this.definition[">"]  = function(args) { return decisive(args, (a, b) => { return a > b; }, 2); };
+        this.definition["<="] = function(args) { return decisive(args, (a, b) => { return a <= b; }, 2); };
+        this.definition[">="] = function(args) { return decisive(args, (a, b) => { return a >= b; }, 2); };
+        this.definition["&&"] = function(args) { return decisive(args, (a, b) => { return a && b; }, 2); };
+        this.definition["||"] = function(args) { return decisive(args, (a, b) => { return a || b; }, 2); };
+        this.definition["!"]  = function(args) { return !args; };
         this.definition["add"]      = this.definition["+"];
         this.definition["subtract"] = this.definition["-"];
         this.definition["multiply"] = this.definition["*"];
@@ -258,6 +261,6 @@ class Evaluator {
         this.definition["or"]       = this.definition["||"];
         this.definition["not"]      = this.definition["!"];
     }
-
-    
 }
+
+export default Evaluator;
