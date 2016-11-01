@@ -1,6 +1,3 @@
-import Token from "./token.js";
-import Lexer from "./lexer.js";
-import Parser from "./parser.js";
 import Evaluator from "./evaluator.js";
 import Error from "./error.js";
 
@@ -33,7 +30,8 @@ let value = evaluator.evaluateText(`
 (print true)
 (print (factorial 10))
 (print (fibonacci 25))
-(print (prime 14))
+(print (prime 16))
+
 `);
 if (value instanceof Error)
 	console.log(value.message + " (At line " + value.stack[1][0]+")");

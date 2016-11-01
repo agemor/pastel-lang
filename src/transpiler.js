@@ -3,7 +3,7 @@ import Token from "./token.js";
 import Node from "./node.js";
 import Error from "./error.js";
 
-class Evaluator {
+class Transpiler {
     constructor() {
         this.parser = new Parser();
         this.initialize();
@@ -31,38 +31,14 @@ class Evaluator {
         return this.evaluateNode(node);
     }
 
-    evaluateNode(node, parameters) {
+    evaluateNode(node) {
 
         // 만약 자식이 없는 노드라면, 데이터 추출
         if (!node.hasChildren()) {
             let token = node.getData();
-            //console.log(token);
-            if (token.type == Token.NUMBER) {
-                return Number(token.data);
-            } else {
+           
+            return token.data;
 
-                if (token.data == "true") return 1;
-                else if (token.data == "false") return 0;
-
-                // 파라미터 체크 (파라미터가 정의보다 우선순위)
-                if (parameters != null && token.data in parameters) {
-                    return parameters[token.data];
-                }
-
-                // 정의 체크
-                if (token.data in this.definition) {
-
-                    // 만약, 파라미터가 없는 함수일 경우, 값 평가 후 리턴
-                    if (this.definition[token.data] instanceof Array && this.definition[token.data][0].length == 0) {
-                        let value = this.evaluateNode(this.definition[token.data][1], parameters);
-                        if (value instanceof Error)
-                            return value.after(children[0].getData().location);
-                        return value;
-                    }
-                }
-
-                return token.data;
-            }
         }
 
         // 자식이 있다면
@@ -70,10 +46,9 @@ class Evaluator {
             let children = node.getChildren();
             
             // 첫번째는 무조건 serialize
-            let head = this.evaluateNode(children[0], parameters);
+            let head = this.evaluateNode(children[0]);
             if (head instanceof Error)
                 return head.after(children[0].getData().location);
-            let list = [head];
 
             // define문은 non-stack 타입. 리턴 null
             if (list[0] == "define") {
@@ -81,32 +56,47 @@ class Evaluator {
                     return new Error(Error.SYNTAX, "Define clause needs at least 3 parameters", children[0].getData().location);
                 
                 // 이름 가져오기. 이름은 run-time에 explicit 해야 함. 그렇다고 동적 할당이 안되는 것은 아님!
-                let name = this.evaluateNode(children[1], parameters);
+                let name = this.evaluateNode(children[1]);
                 if (name instanceof Error)
                     return name.after(children[1].getData().location);
-
-                // 선언은 바꿀 수 없음
-                if (name in this.definition) {
-                    return null;
-                    //return new Error(Error.SYNTAX, "The definition " + name +" already exists.", children[1].getData().location);
-                }
 
                 // 파라미터가 있을 경우
                 if (children.length > 3) {
 
                     // 파라미터 가져오기. 파라미터 배열은 무조건 linear id 배열 형태여야 함.
-                    let parameters = this.evaluateNode(children[2], parameters); // 배열 리턴
+                    let parameters = this.evaluateNode(children[2]); // 배열 리턴
                     if (parameters instanceof Error)
                         return parameters.after(children[2].getData().location);
 
-                    // 파라미터 타입 체크는 당장은 하지 않는다.
-                    this.definition[name] = [/*파라미터*/parameters, /*코드블록*/children[3]];
+                    let code = "function " + name + " (" + parameters[0];
+
+                    for (let k = 1; k < parameters.length; k++) {
+                        code += ", " + parameters[k];
+                    }
+                    code += ") {\n";
+
+                    let content = this.evaluateNode(children[3]); // 배열 리턴
+                    if (content instanceof Error)
+                        return content.after(children[2].getData().location);
+                    code += content;
+                    code += "}";
+
+                    return code;
+
                 }
 
                 // 파라미터가 없을 경우: 상수 함수
                 else {
                     // 함수 정의 리스트에 노드 추가.
-                    this.definition[name] = [/*파라미터*/[], /*코드블록*/children[2]];
+
+                    let code = "function " + name + " () {\n";
+
+                    let content = this.evaluateNode(children[2]); // 배열 리턴
+                    if (content instanceof Error)
+                    code += content;
+                    code += "}";
+
+                    return code;
                 }
 
                 return null;
@@ -125,29 +115,18 @@ class Evaluator {
             }
 
 
-            // 만약 late-serialize 문, 즉 if 가 아니면 나머지도 serialize
-            if (list[0] != "if") {
-                for (let i = 1; i < children.length; i++) {
-                    let body = this.evaluateNode(children[i], parameters);
-                    if (body == null) continue;
-                    if (body instanceof Error)
-                        return body;
-                    list.push(body);
-                }
-            }
-
+           
             // 만약 if문이면
-            else {
+            if (list[0] == "if") {
 
                 // 파라미터 체크
                 if (children.length < 3)
                     return new Error(Error.SYNTAX, "If clause needs at least 3 parameters", children[0].getData().location);
 
                 // 두 번째 인수 평가
-                let conditional = this.evaluateNode(children[1], parameters);
+                let conditional = this.evaluateNode(children[1]);
 
                 if (conditional instanceof Error) {
-                    console.log(conditional)
                     return conditional.after(children[1].getData().location);
                 }
 
@@ -296,4 +275,4 @@ class Evaluator {
     }
 }
 
-export default Evaluator;
+export default Transpiler;
