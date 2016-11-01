@@ -36,7 +36,7 @@ class Transpiler {
         // 만약 자식이 없는 노드라면, 데이터 추출
         if (!node.hasChildren()) {
             let token = node.getData();
-           
+
             return token.data;
 
         }
@@ -44,21 +44,24 @@ class Transpiler {
         // 자식이 있다면
         else {
             let children = node.getChildren();
-            
+
             // 첫번째는 무조건 serialize
             let head = this.evaluateNode(children[0]);
             if (head instanceof Error)
                 return head.after(children[0].getData().location);
+            let list = [head];
 
             // define문은 non-stack 타입. 리턴 null
             if (list[0] == "define") {
                 if (children.length < 3)
                     return new Error(Error.SYNTAX, "Define clause needs at least 3 parameters", children[0].getData().location);
-                
+
                 // 이름 가져오기. 이름은 run-time에 explicit 해야 함. 그렇다고 동적 할당이 안되는 것은 아님!
                 let name = this.evaluateNode(children[1]);
                 if (name instanceof Error)
                     return name.after(children[1].getData().location);
+
+                this.definition[name] = name;
 
                 // 파라미터가 있을 경우
                 if (children.length > 3) {
@@ -77,7 +80,7 @@ class Transpiler {
 
                     let content = this.evaluateNode(children[3]); // 배열 리턴
                     if (content instanceof Error)
-                        return content.after(children[2].getData().location);
+                        return content.after(children[3].getData().location);
                     code += content;
                     code += "}";
 
@@ -93,6 +96,7 @@ class Transpiler {
 
                     let content = this.evaluateNode(children[2]); // 배열 리턴
                     if (content instanceof Error)
+                        return content.after(children[2].getData().location);
                     code += content;
                     code += "}";
 
@@ -115,9 +119,11 @@ class Transpiler {
             }
 
 
-           
+
             // 만약 if문이면
             if (list[0] == "if") {
+
+                let code = "((";
 
                 // 파라미터 체크
                 if (children.length < 3)
@@ -126,80 +132,75 @@ class Transpiler {
                 // 두 번째 인수 평가
                 let conditional = this.evaluateNode(children[1]);
 
-                if (conditional instanceof Error) {
+                if (conditional instanceof Error)
                     return conditional.after(children[1].getData().location);
-                }
 
-                let clauseValue = 0;
+                code += conditional;
+                code += ") ?\n";
 
-                // 만약 참이면
-                if (conditional) {
-                    // 세 번째 인수 평가
-                    let trueClause = this.evaluateNode(children[2], parameters);
-                    if (trueClause instanceof Error)
-                        return trueClause.after(children[2].getData().location);
-                    clauseValue = trueClause;
-                }
+                let trueClause = this.evaluateNode(children[2], parameters);
+                if (trueClause instanceof Error)
+                    return trueClause.after(children[2].getData().location);
 
-                // 거짓이면
-                else if (children.length > 3) {
-                    let falseCluase = this.evaluateNode(children[3], parameters);
-                    if (falseCluase instanceof Error)
-                        return falseCluase.after(children[3].getData().location);
-                    clauseValue = falseCluase;
-                } else {
-                    clauseValue = undefined;
-                }
+                code += " ("+ trueClause + ") : ";
 
-                return clauseValue;
+                let falseCluase = this.evaluateNode(children[3], parameters);
+                if (falseCluase instanceof Error)
+                    return falseCluase.after(children[3].getData().location);
+
+                code += "("+ falseCluase + ")";
+                code += ")";
+
+                return code;
             }
+
+
+            // list
+            for (let i = 1; i < children.length; i++) {
+                let body = this.evaluateNode(children[i], parameters);
+                if (body == null) continue;
+                if (body instanceof Error)
+                    return body;
+                list.push(body);
+            }
+
 
             // 함수 체크
             if (head in this.definition) {
 
-                // 커스텀 정의
-                if (this.definition[head] instanceof Array) {
+                let code = "";
+                list.shift();
 
-                    let parameterKeys = this.definition[head][0];
-                    
-                    // 파라미터 길이 체크
-                    if (list.length - 1 != parameterKeys.length)
-                        return new Error(Error.SYNTAX, "Definiton " + head + " needs " + parameterKeys.length + " parameters", children[0].getData().location);
-
-                    // 파라미터 매핑
-                    let parameterMap = new Object();
-                    for (let i = 0; i < parameterKeys.length; i++) {
-                        parameterMap[parameterKeys[i]] = list[i + 1];
+                // builtin 정의
+                if (this.definition[head] instanceof String) {
+                    code += head + "(";
+                    for (let k = 0; k < list.length; k++) {
+                        code += list[k];
+                        if (k - 1 != list.length)
+                          code += ",";
                     }
-                    // 값 계산
-                    let value = this.evaluateNode(this.definition[head][1], parameterMap);
-                    if (value instanceof Error)
-                        return value.after(children[0].getData().location);
+                    code += ")";
 
-                    return value;
                 }
 
-                // 빌트인 정의
                 else {
 
-                    // 그대로 인수로 넘긴다.
-                    list.shift();
 
-                    let value = this.definition[head](list);
-                    if (value instanceof Error)
-                        return value.after(children[0].getData().location);
+                    let code = this.definition[head](list);
+                    if (code instanceof Error)
+                        return code.after(children[0].getData().location);
 
-                    return value;
+                    return code;
                 }
             }
 
             // unstack resource를 제거한다.
-            list = list.filter(function(n){ return n != null }); 
+            list = list.filter(function(n){ return n != null });
 
             // 리스트. 값을 최대한 깐다(pill)
             if (list.length == 1)
                 return list[0];
-            else 
+            else
                 return list;
         }
     }
@@ -215,49 +216,39 @@ class Transpiler {
             }
             return null;
         }
-        function cumulative(operands, operator, minimum = 1, maximum = 10000) {
-            let isError = checkParameters(operands, minimum, maximum);
-            if (isError instanceof Error) return isError; 
-            let value = operands[0];
-            for (let i = 1; i < operands.length; i++)
-                value = operator(value, operands[i]);
-            return value;
-        }
-        function decisive(operands, operator, minimum = 1, maximum = 10000) {
+        function mid(operands, operator, minimum = 1, maximum = 10000) {
             let isError = checkParameters(operands, minimum, maximum);
             if (isError instanceof Error) return isError;
-            let head = operands[0];
-            for (let i = 1; i < operands.length; i++) {
-                if (operator(head, operands[i]))
-                    head = operands[i];
-                else return false;
-            }
-            return true;
+
+            let code = "("+operands[0];
+            for (let i = 1; i < operands.length; i++)
+                code += operator + operands[i];
+            return code + ")";
         }
 
-        this.definition["+"]  = function(args) { return cumulative(args, (a, b) => { return a + b; }, 2); };
-        this.definition["-"]  = function(args) { return cumulative(args, (a, b) => { return a - b; }, 2); };
-        this.definition["*"]  = function(args) { return cumulative(args, (a, b) => { return a * b; }, 2); };
-        this.definition["/"]  = function(args) { return cumulative(args, (a, b) => { return a / b; }, 2); };
-        this.definition["%"]  = function(args) { return cumulative(args, (a, b) => { return a % b; }, 2, 2); };
-        this.definition["&"]  = function(args) { return cumulative(args, (a, b) => { return a & b; }, 2); };
-        this.definition["|"]  = function(args) { return cumulative(args, (a, b) => { return a | b; }, 2); };
-        this.definition["^"]  = function(args) { return cumulative(args, (a, b) => { return a ^ b; }, 2); };
-        this.definition["<<"] = function(args) { return cumulative(args, (a, b) => { return a << b; }, 2); };
-        this.definition[">>"] = function(args) { return cumulative(args, (a, b) => { return a >> b; }, 2); };
-        this.definition["~"]  = function(args) { return ~args[0]; };
-        this.definition["="]  = function(args) { return decisive(args, (a, b) => { return a == b; }, 2); };
-        this.definition["!="] = function(args) { return decisive(args, (a, b) => { return a != b; }, 2); };
-        this.definition["<"]  = function(args) { return decisive(args, (a, b) => { return a < b; }, 2); };
-        this.definition[">"]  = function(args) { return decisive(args, (a, b) => { return a > b; }, 2); };
-        this.definition["<="] = function(args) { return decisive(args, (a, b) => { return a <= b; }, 2); };
-        this.definition[">="] = function(args) { return decisive(args, (a, b) => { return a >= b; }, 2); };
-        this.definition["&&"] = function(args) { return decisive(args, (a, b) => { return a && b; }, 2); };
-        this.definition["||"] = function(args) { return decisive(args, (a, b) => { return a || b; }, 2); };
-        this.definition["!"]  = function(args) { return !args[0]; };
-        this.definition["zero"]  = function(args) { return args[0] == 0 ? 1 : 0; };
-        this.definition["square"]  = function(args) { return Math.sqrt(args[0]); };
-        this.definition["print"]  = function(args) { console.log(args[0]); return args[0]; };
+        this.definition["+"]  = function(args) { return mid(args, "+", 2); };
+        this.definition["-"]  = function(args) { return mid(args, "-", 2); };
+        this.definition["*"]  = function(args) { return mid(args, "*", 2); };
+        this.definition["/"]  = function(args) { return mid(args, "/", 2); };
+        this.definition["%"]  = function(args) { return mid(args, "%", 2, 2); };
+        this.definition["&"]  = function(args) { return mid(args, "&", 2); };
+        this.definition["|"]  = function(args) { return mid(args, "|", 2); };
+        this.definition["^"]  = function(args) { return mid(args, "^", 2); };
+        this.definition["<<"] = function(args) { return mid(args, "<<", 2); };
+        this.definition[">>"] = function(args) { return mid(args, ">>", 2); };
+        this.definition["~"]  = function(args) { return "(~" + args[0] +")"; };
+        this.definition["="]  = function(args) { return mid(args, "==", 2); };
+        this.definition["!="] = function(args) { return mid(args, "!=", 2); };
+        this.definition["<"]  = function(args) { return mid(args, "<", 2); };
+        this.definition[">"]  = function(args) { return mid(args, ">", 2); };
+        this.definition["<="] = function(args) { return mid(args, "<=", 2); };
+        this.definition[">="] = function(args) { return mid(args, ">=", 2); };
+        this.definition["&&"] = function(args) { return mid(args, "&&", 2); };
+        this.definition["||"] = function(args) { return mid(args, "||", 2); };
+        this.definition["!"]  = function(args) { return "(!" + args[0] + ")"; };
+        this.definition["zero"]  = function(args) { return "("+args[0] + " == 0 ? true : false)"; };
+        this.definition["square"]  = function(args) { return "(Math.sqrt(" + args[0] + "))" };
+        this.definition["print"]  = function(args) { console.log(args[0]);};
         this.definition["add"]      = this.definition["+"];
         this.definition["subtract"] = this.definition["-"];
         this.definition["multiply"] = this.definition["*"];
