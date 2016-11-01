@@ -61,7 +61,7 @@ class Transpiler {
                 if (name instanceof Error)
                     return name.after(children[1].getData().location);
 
-                this.definition[name] = name;
+                this.definition[name] = "custom";
 
                 // 파라미터가 있을 경우
                 if (children.length > 3) {
@@ -81,7 +81,7 @@ class Transpiler {
                     let content = this.evaluateNode(children[3]); // 배열 리턴
                     if (content instanceof Error)
                         return content.after(children[3].getData().location);
-                    code += content;
+                    code += "return ("+content + ")";
                     code += "}";
 
                     return code;
@@ -97,7 +97,7 @@ class Transpiler {
                     let content = this.evaluateNode(children[2]); // 배열 리턴
                     if (content instanceof Error)
                         return content.after(children[2].getData().location);
-                    code += content;
+                    code += "return ("+content + ")";
                     code += "}";
 
                     return code;
@@ -138,13 +138,13 @@ class Transpiler {
                 code += conditional;
                 code += ") ?\n";
 
-                let trueClause = this.evaluateNode(children[2], parameters);
+                let trueClause = this.evaluateNode(children[2]);
                 if (trueClause instanceof Error)
                     return trueClause.after(children[2].getData().location);
 
                 code += " ("+ trueClause + ") : ";
 
-                let falseCluase = this.evaluateNode(children[3], parameters);
+                let falseCluase = this.evaluateNode(children[3]);
                 if (falseCluase instanceof Error)
                     return falseCluase.after(children[3].getData().location);
 
@@ -157,7 +157,7 @@ class Transpiler {
 
             // list
             for (let i = 1; i < children.length; i++) {
-                let body = this.evaluateNode(children[i], parameters);
+                let body = this.evaluateNode(children[i]);
                 if (body == null) continue;
                 if (body instanceof Error)
                     return body;
@@ -172,7 +172,7 @@ class Transpiler {
                 list.shift();
 
                 // builtin 정의
-                if (this.definition[head] instanceof String) {
+                if (this.definition[head] == "custom") {
                     code += head + "(";
                     for (let k = 0; k < list.length; k++) {
                         code += list[k];
@@ -180,17 +180,16 @@ class Transpiler {
                           code += ",";
                     }
                     code += ")";
-
+                    return code;
                 }
 
-                else {
-
-
+                else if (this.definition[head] instanceof Function){
                     let code = this.definition[head](list);
                     if (code instanceof Error)
                         return code.after(children[0].getData().location);
-
                     return code;
+                } else {
+                  console.log(this.definition[head]);
                 }
             }
 
@@ -248,7 +247,7 @@ class Transpiler {
         this.definition["!"]  = function(args) { return "(!" + args[0] + ")"; };
         this.definition["zero"]  = function(args) { return "("+args[0] + " == 0 ? true : false)"; };
         this.definition["square"]  = function(args) { return "(Math.sqrt(" + args[0] + "))" };
-        this.definition["print"]  = function(args) { console.log(args[0]);};
+        this.definition["print"]  = function(args) { return "console.log(" + args[0] + ")";};
         this.definition["add"]      = this.definition["+"];
         this.definition["subtract"] = this.definition["-"];
         this.definition["multiply"] = this.definition["*"];

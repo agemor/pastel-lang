@@ -1,14 +1,17 @@
 import Evaluator from "./evaluator.js";
+import Transpiler from "./transpiler.js";
 import Error from "./error.js";
 
 let evaluator = new Evaluator();
-let value = evaluator.evaluateText(`
+let transpiler = new Transpiler();
+
+let code = `
 
 (define me 3)
 (define factorial n (
-    (if (< n 2) (1) 
+    (if (< n 2) (1)
         (* n (factorial (- n 1))))
-)) 
+))
 (define fibonacci n (
     (if (= n 0) (0)
     (if (= n 1) (1)
@@ -32,6 +35,7 @@ let value = evaluator.evaluateText(`
 (print (fibonacci 25))
 (print (prime 16))
 
-`);
-if (value instanceof Error)
-	console.log(value.message + " (At line " + value.stack[1][0]+")");
+`;
+
+let result = transpiler.evaluateText(code).concat("\n");
+console.log(result);
