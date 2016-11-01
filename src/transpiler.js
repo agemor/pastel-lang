@@ -176,7 +176,7 @@ class Transpiler {
                     code += head + "(";
                     for (let k = 0; k < list.length; k++) {
                         code += list[k];
-                        if (k - 1 != list.length)
+                        if (k != list.length - 1)
                           code += ",";
                     }
                     code += ")";
