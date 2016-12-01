@@ -37,5 +37,5 @@ let code = `
 
 `;
 
-let result = transpiler.evaluateText(code).concat("\n");
+let result = evaluator.evaluateText(code);//transpiler.evaluateText(code).concat("\n");
 console.log(result);

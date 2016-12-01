@@ -2,35 +2,161 @@ import Token from "./token.js";
 
 class Lexer {
 
-    /**
-     * Initialize buffer and token array
-     */
-    initialize() {
-        this.buffer = "";
-        this.tokens = [];
-        this.currentLocation = [0, ""];
+    constructor() {
+        this.defineStates();
     }
 
     /**
-     * Buffer write
+     * Define State-Transference machine for lexical analysis
      */
-    write(char) {
-        this.buffer += char;
-    }
+    defineStates() {
 
-    /** 
-     * Buffer flush
-     */
-    flush() {
-        if (this.buffer.length > 0) {
+        // Acquisition lambdas
+        let queue = i => { return this.text.charAt(i) };
+        let store = c => { this.buffer += c };
+        let flush = t => {
+          if (this.buffer.length > 0) {
 
-            let type = this.identify(this.buffer);
-            this.tokens.push(new Token(type, this.buffer, this.currentLocation.slice(0)));
-            this.buffer = "";
+            // Special treatment for id tokens that contain only numbers
+            let numberToken = (t == Token.ID && !isNaN(this.buffer));
+            this.list.push(new Token(numberToken ? Token.NUMBER : t, this.buffer, line));
+          }
+          this.buffer = '';
         }
+
+        // Line number updater
+        let line = 0;
+        let newline = i => { line++; };
+
+        // State definitions
+        let state = {
+
+            // Transference function
+            transference: (i) => {
+                if (i < this.text.length)
+                    state.identifier(i);
+                else flush(Token.ID);
+            },
+
+            // For IDs
+            identifier: (i, phase) => {
+                let c = queue(i);
+
+                switch (c) {
+                  case '\"':
+                  case '\'':
+                      flush(Token.ID);
+                      state.string(i + 1, c);
+                      return;
+                  case '\\':
+                      flush(Token.ID);
+                      state.extension(i);
+                      return;
+                  case ' ':
+                  case ';':
+                      flush(Token.ID);
+                      state.delimiter(i);
+                      return;
+                  case '#':
+                      flush(Token.ID);
+                      state.comment(i + 1);
+                      return;
+                  case '(':
+                  case ')':
+                      flush(Token.ID);
+                      state.parenthesis(i, c);
+                      return;
+                  default:
+                      store(c);
+                      state.transference(i + 1);
+                }
+            },
+
+            // For strings
+            string: (i, phase) => {
+                let c = queue(i);
+
+                switch (c) {
+                  case phase:
+                      flush(Token.STRING);
+                      state.transference(i + 1, c);
+                      return;
+                  case '\\':
+                      state.extension(i + 1);
+                      return;
+                  default:
+                      store(c);
+                      state.string(i + 1, c);
+                }
+            },
+
+            // For escape characters
+            extension: (i, phase) => {
+                let c = queue(i);
+
+                store('\\' + c);
+                state.transference(i + 1);
+            },
+
+            // For comments
+            comment: (i, phase) => {
+                let c = queue(i);
+
+                switch (c) {
+                  case ';':
+                      newline();
+                      flush(Token.COMMENT);
+                      state.transference(i + 1);
+                      return;
+                  default:
+                      store(c);
+                      state.comment(i + 1);
+                }
+            },
+
+            // For parenthesis
+            parenthesis: (i, phase) => {
+                let c = queue(i);
+
+                store(c);
+                if (phase == '(') flush(Token.OPEN);
+                else if (phase == ')') flush(Token.CLOSE);
+                state.transference(i + 1);
+            },
+
+            // For whitespaces and linefeeds
+            delimiter: (i, phase) => {
+                let c = queue(i);
+
+                switch (c) {
+                  case ';':
+                      newline();
+                  case ' ':
+                      store(c);
+                      state.delimiter(i + 1);
+                      return;
+                  default:
+                      flush(Token.SPACE);
+                      state.transference(i);
+                }
+            }
+        }
+        this.state = state;
     }
 
-    /** 
+    /**
+     * Split code by syllables
+     */
+    analyze(text) {
+        this.text = this.purify(text);
+        this.list = [];
+        this.buffer = '';
+        this.state.transference(0);
+
+        return this.list;
+    }
+
+    /**
      * Remove/unify unsupported characters.
      */
     purify(text) {
@@ -43,97 +169,6 @@ class Lexer {
 
         return text;
     }
-
-    /**
-     * Identify token type
-     */
-    identify(data) {
-        if (data == "(") return Token.OPEN;
-        else if (data == ")") return Token.CLOSE;
-        else if (!isNaN(data)) return Token.NUMBER;
-        else if (data.charAt(0) == "\"" || data.charAt(0) == "\'") return Token.STRING;
-        else return Token.ID;
-    }
-
-    /**
-     * Split code by syllables
-     */
-    analyze(text) {
-
-        this.initialize();
-
-        // Purify
-        text = this.purify(text);
-
-        // Space flags
-        let spaceFlag = false;
-
-        // String flags
-        let stringOpened = false;
-        let stringOpener = "";
-
-        for (let i in text) {
-
-            let char = text.charAt(i);
-
-            // Update line data
-            if (char == ";" && !stringOpened) {
-                this.currentLocation[0] ++;
-                this.currentLocation[1] = "";
-                continue;
-            } else {
-                this.currentLocation[1] += char;
-            }
-
-            // Space is delimiter
-            if (char == " " && !stringOpened) {
-                if (!spaceFlag) {
-                    spaceFlag = true;
-                    this.flush();
-                }
-                // Space is non-insertive
-                continue;
-            } else {
-                spaceFlag = false;
-            }
-
-            // Parens as delemiter
-            if ((char == "(" || char == ")") && !stringOpened) {
-                this.flush();
-                this.write(char);
-                this.flush();
-                continue;
-            }
-
-            // Bundle up strings as delimiter
-            if (char == "\"" || char == "\'") {
-
-                // String open
-                if (!stringOpened) {
-                    stringOpener = char;
-                    stringOpened = true;
-                    this.flush();
-                    this.write(char);
-                    continue;
-                }
-                // String close
-                else if (stringOpener == char) {
-                    stringOpened = false;
-                    this.write(char);
-                    this.flush();
-                    continue;
-                }
-            }
-
-            // Write buffer
-            this.write(char);
-        }
-        // Last flush
-        this.flush();
-
-        return this.tokens;
-    }
-
 }
 
 export default Lexer;

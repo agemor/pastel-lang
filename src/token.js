@@ -3,11 +3,11 @@
  */
 
 class Token {
-    
-    constructor(type , data = undefined, location = undefined) {
+
+    constructor(type , data = undefined, lineNumber = 0) {
         this.type = type;
         this.data = data;
-        this.location = location;
+        this.lineNumber = lineNumber;
     }
 
 }
@@ -21,5 +21,7 @@ Token.CLOSE     = tokenId++;
 Token.ID        = tokenId++;
 Token.STRING    = tokenId++;
 Token.NUMBER    = tokenId++;
+Token.COMMENT   = tokenId++;
+Token.SPACE   = tokenId++;
 
 export default Token;

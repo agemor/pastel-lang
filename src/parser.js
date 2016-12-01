@@ -44,7 +44,10 @@ class Parser {
         while (index < tokenArray.length) {
 
             let token = tokenArray[index++];
-            //console.log(token);
+
+            if (token.type == Token.SPACE || token.type == Token.COMMENT)
+                continue;
+
             // Open
             if (token.type == Token.OPEN) {
 
@@ -63,10 +66,10 @@ class Parser {
 
                 // Depth cannot be smaller than 0
                 if (depth < 0)
-                    return new Error(Error.SYNTAX, "Surplus ')' exists", token.location);
+                    return new Error(Error.SYNTAX, "Surplus ')' exists", token.lineNumber);
 
                 if (depth == 0) {
-                    
+
                     // Create sub-tree
                     let subtree = this.treefy(subarray);
 
@@ -82,7 +85,7 @@ class Parser {
             // Direct (siblings) token
             if (depth == 0) {
                 tree.addChild(new Node(token));
-            } 
+            }
 
             // Subarray (children) token
             else if (depth > 0) {
@@ -92,12 +95,12 @@ class Parser {
 
         // Depth must be 0 at the termination point
         if (depth > 0)
-            return new Error(Error.SYNTAX, "'(' not closed", tokenArray[tokenArray.length - 1].location);
+            return new Error(Error.SYNTAX, "'(' not closed", tokenArray[tokenArray.length - 1].lineNumber);
 
         return tree;
     }
 
-    
+
 }
 
 export default Parser;

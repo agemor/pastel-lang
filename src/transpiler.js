@@ -48,18 +48,18 @@ class Transpiler {
             // 첫번째는 무조건 serialize
             let head = this.evaluateNode(children[0]);
             if (head instanceof Error)
-                return head.after(children[0].getData().location);
+                return head.after(children[0].getData().lineNumber);
             let list = [head];
 
             // define문은 non-stack 타입. 리턴 null
             if (list[0] == "define") {
                 if (children.length < 3)
-                    return new Error(Error.SYNTAX, "Define clause needs at least 3 parameters", children[0].getData().location);
+                    return new Error(Error.SYNTAX, "Define clause needs at least 3 parameters", children[0].getData().lineNumber);
 
                 // 이름 가져오기. 이름은 run-time에 explicit 해야 함. 그렇다고 동적 할당이 안되는 것은 아님!
                 let name = this.evaluateNode(children[1]);
                 if (name instanceof Error)
-                    return name.after(children[1].getData().location);
+                    return name.after(children[1].getData().lineNumber);
 
                 this.definition[name] = "custom";
 
@@ -69,7 +69,7 @@ class Transpiler {
                     // 파라미터 가져오기. 파라미터 배열은 무조건 linear id 배열 형태여야 함.
                     let parameters = this.evaluateNode(children[2]); // 배열 리턴
                     if (parameters instanceof Error)
-                        return parameters.after(children[2].getData().location);
+                        return parameters.after(children[2].getData().lineNumber);
 
                     let code = "function " + name + " (" + parameters[0];
 
@@ -80,7 +80,7 @@ class Transpiler {
 
                     let content = this.evaluateNode(children[3]); // 배열 리턴
                     if (content instanceof Error)
-                        return content.after(children[3].getData().location);
+                        return content.after(children[3].getData().lineNumber);
                     code += "return ("+content + ")";
                     code += "}";
 
@@ -96,7 +96,7 @@ class Transpiler {
 
                     let content = this.evaluateNode(children[2]); // 배열 리턴
                     if (content instanceof Error)
-                        return content.after(children[2].getData().location);
+                        return content.after(children[2].getData().lineNumber);
                     code += "return ("+content + ")";
                     code += "}";
 
@@ -127,26 +127,26 @@ class Transpiler {
 
                 // 파라미터 체크
                 if (children.length < 3)
-                    return new Error(Error.SYNTAX, "If clause needs at least 3 parameters", children[0].getData().location);
+                    return new Error(Error.SYNTAX, "If clause needs at least 3 parameters", children[0].getData().lineNumber);
 
                 // 두 번째 인수 평가
                 let conditional = this.evaluateNode(children[1]);
 
                 if (conditional instanceof Error)
-                    return conditional.after(children[1].getData().location);
+                    return conditional.after(children[1].getData().lineNumber);
 
                 code += conditional;
                 code += ") ?\n";
 
                 let trueClause = this.evaluateNode(children[2]);
                 if (trueClause instanceof Error)
-                    return trueClause.after(children[2].getData().location);
+                    return trueClause.after(children[2].getData().lineNumber);
 
                 code += " ("+ trueClause + ") : ";
 
                 let falseCluase = this.evaluateNode(children[3]);
                 if (falseCluase instanceof Error)
-                    return falseCluase.after(children[3].getData().location);
+                    return falseCluase.after(children[3].getData().lineNumber);
 
                 code += "("+ falseCluase + ")";
                 code += ")";
@@ -186,7 +186,7 @@ class Transpiler {
                 else if (this.definition[head] instanceof Function){
                     let code = this.definition[head](list);
                     if (code instanceof Error)
-                        return code.after(children[0].getData().location);
+                        return code.after(children[0].getData().lineNumber);
                     return code;
                 } else {
                   console.log(this.definition[head]);

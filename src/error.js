@@ -1,14 +1,14 @@
 class Error {
-	
-	constructor(type, message, location) {
+
+	constructor(type, message, lineNumber) {
 		this.self = this;
 		this.type = type;
 		this.message = message;
-		this.stack = [location];
+		this.stack = [lineNumber];
 	}
 
-	after(location) {
-		this.stack.push(location);
+	after(lineNumber) {
+		this.stack.push(lineNumber);
 		return this.self;
 	}
 }
