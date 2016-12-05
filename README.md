@@ -1,2 +1,2 @@
 # pastel
-Pastel functional language
+Pastel functional programming language
