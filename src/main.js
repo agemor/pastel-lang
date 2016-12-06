@@ -1,4 +1,4 @@
-import Evaluator from "./evaluator.js";
+import Interpreter from "./interpreter.js";
 import Transpiler from "./transpiler.js";
 import Lexer from "./lexer.js";
 import Parser from "./parser.js";
@@ -6,6 +6,7 @@ import Node from "./node.js";
 import Error from "./error.js";
 import Token from "./token.js";
 
+<<<<<<< HEAD
 var pastel = {
         Evaluator: Evaluator,
         Transpiler: Transpiler,
@@ -21,6 +22,10 @@ var lexer = new pastel.Lexer();
 let c = "(print (+ 1 1)) (if (= 3 4) (print 'correct!') (print 'incorrect!'))  ";
 
 console.log(lexer.analyze(c));
+=======
+let interpreter = new Interpreter();
+let transpiler = new Transpiler();
+>>>>>>> 28dd0fbb413125a78a83014ebe8abb0b5fd43736
 
 
 let code = `
@@ -53,7 +58,7 @@ let code = `
 (print (prime 16))
 `;
 
-let result = evaluator.evaluateText(code);//transpiler.evaluateText(code).concat("\n");
+let result = interpreter.evaluateText(code);//transpiler.evaluateText(code).concat("\n");
 console.log(result);
 */
 module.exports = pastel;
