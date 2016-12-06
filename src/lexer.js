@@ -86,7 +86,7 @@ class Lexer {
                       return;
                   default:
                       store(c);
-                      state.string(i + 1, c);
+                      state.string(i + 1, phase);
                 }
             },
 

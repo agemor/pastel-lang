@@ -1,12 +1,29 @@
 import Evaluator from "./evaluator.js";
 import Transpiler from "./transpiler.js";
+import Lexer from "./lexer.js";
+import Parser from "./parser.js";
+import Node from "./node.js";
 import Error from "./error.js";
+import Token from "./token.js";
 
-let evaluator = new Evaluator();
-let transpiler = new Transpiler();
+var pastel = {
+        Evaluator: Evaluator,
+        Transpiler: Transpiler,
+        Lexer: Lexer,
+        Parser: Parser,
+        Node: Node,
+        Error: Error,
+        Token: Token
+    }
+/*
+var parser = new pastel.Parser();
+var lexer = new pastel.Lexer();
+let c = "(print (+ 1 1)) (if (= 3 4) (print 'correct!') (print 'incorrect!'))  ";
+
+console.log(lexer.analyze(c));
+
 
 let code = `
-
 (define me 3)
 (define factorial n (
     (if (< n 2) (1)
@@ -34,8 +51,9 @@ let code = `
 (print (factorial 10))
 (print (fibonacci 25))
 (print (prime 16))
-
 `;
 
 let result = evaluator.evaluateText(code);//transpiler.evaluateText(code).concat("\n");
 console.log(result);
+*/
+module.exports = pastel;
