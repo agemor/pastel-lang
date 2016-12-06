@@ -12,7 +12,7 @@ class Lexer {
     defineStates() {
 
         // Maximum stack calls
-        let maxStackCalls = 300;
+        let maxStackCalls = 400;
 
         // Acquisition lambdas
         let queue = i => { return this.text.charAt(i) };
@@ -36,17 +36,21 @@ class Lexer {
 
             // Transference function
             transference: (i, phase) => {
+
                 if (i < this.text.length) {
 
                   // Prevent stack overflow
-                  if (i % maxStackCalls == 0 && phase != true)
-                      return i;
+                  if (i % maxStackCalls == 0 && phase != true) {
+                      this.index = i;
+                      return;
+                  }
 
                   // Transfer to the identifier state
                   state.identifier(i);
                 } else {
                   flush(Token.ID);
-                  return -1;
+                  this.index = i;
+                  return;
                 }
             },
 
@@ -161,14 +165,12 @@ class Lexer {
      */
     analyze(text) {
         this.text = this.purify(text);
+        this.index = 0;
         this.list = [];
         this.buffer = '';
 
-        let index = 0;
-        while (true) {
-            index = this.state.transference(index, true);
-            if (index < 0)
-                break;
+        while (this.index < this.text.length) {
+            this.state.transference(this.index, true);
         }
         return this.list;
     }
