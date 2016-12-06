@@ -1,4 +1,4 @@
-import Interpreter from "./interpreter.js";
+import Evaluator from "./evaluator.js";
 import Transpiler from "./transpiler.js";
 import Lexer from "./lexer.js";
 import Parser from "./parser.js";
