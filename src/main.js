@@ -1,8 +1,8 @@
-import Evaluator from "./evaluator.js";
+import Interpreter from "./interpreter.js";
 import Transpiler from "./transpiler.js";
 import Error from "./error.js";
 
-let evaluator = new Evaluator();
+let interpreter = new Interpreter();
 let transpiler = new Transpiler();
 
 let code = `
@@ -37,5 +37,5 @@ let code = `
 
 `;
 
-let result = evaluator.evaluateText(code);//transpiler.evaluateText(code).concat("\n");
+let result = interpreter.evaluateText(code);//transpiler.evaluateText(code).concat("\n");
 console.log(result);

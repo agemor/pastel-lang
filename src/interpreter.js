@@ -3,7 +3,7 @@ import Token from "./token.js";
 import Node from "./node.js";
 import Error from "./error.js";
 
-class Evaluator {
+class Interpreter {
     constructor() {
         this.parser = new Parser();
         this.initialize();
@@ -29,6 +29,19 @@ class Evaluator {
 
         //this.parser.viewTree(node);
         return this.evaluateNode(node);
+    }
+
+    compileNode(node, parameters) {
+
+        let assembly = "";
+
+        // 자식이 없는 노드면, 추출 후 push
+        if (!node.hasChildren()) {
+            let token = node.getData();
+            //console.log(token);
+            if (token.type == Token.NUMBER) {
+                assembly += token.data;
+
     }
 
     evaluateNode(node, parameters) {
@@ -296,4 +309,4 @@ class Evaluator {
     }
 }
 
-export default Evaluator;
+export default Interpreter;
