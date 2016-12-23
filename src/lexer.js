@@ -7,7 +7,7 @@ class Lexer {
     }
 
     /**
-     * Define State-Transference machine for lexical analysis
+     * Define Finite State Machine for lexical analysis
      */
     defineStates() {
 

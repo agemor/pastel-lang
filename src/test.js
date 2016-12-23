@@ -10,6 +10,7 @@ var evaluator = new Evaluator();
 var lexer = new Lexer();
 
 let code = `(define me 3)
+#qeg
 (define factorial n (
     (if (< n 2) (1)
         (* n (factorial (- n 1))))
@@ -37,9 +38,6 @@ let code = `(define me 3)
 (print (fibonacci 25))
 (print (prime 16))
 `;
-
-var tokens = lexer.analyze(code);
-console.log(tokens.splice(100));
 
 var result = evaluator.evaluateText(code);
 //console.log(result);
