@@ -1,193 +1,194 @@
 import Token from "./token.js";
 
 class Lexer {
+  constructor() {
+    this.defineStates();
+  }
 
-    constructor() {
-        this.defineStates();
-    }
+  /**
+   * Define Finite State Machine for lexical analysis
+   */
+  defineStates() {
+    // Maximum stack calls
+    let maxStackCalls = 400;
 
-    /**
-     * Define Finite State Machine for lexical analysis
-     */
-    defineStates() {
+    // Acquisition lambdas
+    let queue = i => {
+      return this.text.charAt(i);
+    };
+    let store = c => {
+      this.buffer += c;
+    };
+    let flush = t => {
+      if (this.buffer.length > 0) {
+        // Special treatment for id tokens that contain only numbers
+        let numberToken = t == Token.ID && !isNaN(this.buffer);
+        this.list.push(
+          new Token(numberToken ? Token.NUMBER : t, this.buffer, line)
+        );
+      }
+      this.buffer = "";
+    };
 
-        // Maximum stack calls
-        let maxStackCalls = 400;
+    // Line number updater
+    let line = 0;
+    let newline = i => {
+      line++;
+    };
 
-        // Acquisition lambdas
-        let queue = i => { return this.text.charAt(i) };
-        let store = c => { this.buffer += c };
-        let flush = t => {
-          if (this.buffer.length > 0) {
-
-            // Special treatment for id tokens that contain only numbers
-            let numberToken = (t == Token.ID && !isNaN(this.buffer));
-            this.list.push(new Token(numberToken ? Token.NUMBER : t, this.buffer, line));
+    // State definitions
+    let state = {
+      // Transference function
+      transference: (i, phase) => {
+        if (i < this.text.length) {
+          // Prevent stack overflow
+          if (i % maxStackCalls == 0 && phase != true) {
+            this.index = i;
+            return;
           }
-          this.buffer = '';
+
+          // Transfer to the identifier state
+          state.identifier(i);
+        } else {
+          flush(Token.ID);
+          this.index = i;
+          return;
         }
+      },
 
-        // Line number updater
-        let line = 0;
-        let newline = i => { line++; };
+      // For IDs
+      identifier: (i, phase) => {
+        let c = queue(i);
 
-        // State definitions
-        let state = {
-
-            // Transference function
-            transference: (i, phase) => {
-
-                if (i < this.text.length) {
-
-                  // Prevent stack overflow
-                  if (i % maxStackCalls == 0 && phase != true) {
-                      this.index = i;
-                      return;
-                  }
-
-                  // Transfer to the identifier state
-                  state.identifier(i);
-                } else {
-                  flush(Token.ID);
-                  this.index = i;
-                  return;
-                }
-            },
-
-            // For IDs
-            identifier: (i, phase) => {
-                let c = queue(i);
-
-                switch (c) {
-                  case '\"':
-                  case '\'':
-                      flush(Token.ID);
-                      state.string(i + 1, c);
-                      return;
-                  case '\\':
-                      flush(Token.ID);
-                      state.extension(i);
-                      return;
-                  case ' ':
-                  case ';':
-                      flush(Token.ID);
-                      state.delimiter(i);
-                      return;
-                  case '#':
-                      flush(Token.ID);
-                      state.comment(i + 1);
-                      return;
-                  case '(':
-                  case ')':
-                      flush(Token.ID);
-                      state.parenthesis(i, c);
-                      return;
-                  default:
-                      store(c);
-                      state.transference(i + 1);
-                }
-            },
-
-            // For strings
-            string: (i, phase) => {
-                let c = queue(i);
-
-                switch (c) {
-                  case phase:
-                      flush(Token.STRING);
-                      state.transference(i + 1, c);
-                      return;
-                  case '\\':
-                      state.extension(i + 1);
-                      return;
-                  default:
-                      store(c);
-                      state.string(i + 1, phase);
-                }
-            },
-
-            // For escape characters
-            extension: (i, phase) => {
-                let c = queue(i);
-
-                store('\\' + c);
-                state.transference(i + 1);
-            },
-
-            // For comments
-            comment: (i, phase) => {
-                let c = queue(i);
-
-                switch (c) {
-                  case ';':
-                      newline();
-                      flush(Token.COMMENT);
-                      state.transference(i + 1);
-                      return;
-                  default:
-                      store(c);
-                      state.comment(i + 1);
-                }
-            },
-
-            // For parenthesis
-            parenthesis: (i, phase) => {
-                let c = queue(i);
-
-                store(c);
-                if (phase == '(') flush(Token.OPEN);
-                else if (phase == ')') flush(Token.CLOSE);
-                state.transference(i + 1);
-            },
-
-            // For whitespaces and linefeeds
-            delimiter: (i, phase) => {
-                let c = queue(i);
-
-                switch (c) {
-                  case ';':
-                      newline();
-                  case ' ':
-                      store(c);
-                      state.delimiter(i + 1);
-                      return;
-                  default:
-                      flush(Token.SPACE);
-                      state.transference(i);
-                }
-            }
+        switch (c) {
+          case '"':
+          case "'":
+            flush(Token.ID);
+            state.string(i + 1, c);
+            return;
+          case "\\":
+            flush(Token.ID);
+            state.extension(i);
+            return;
+          case " ":
+          case ";":
+            flush(Token.ID);
+            state.delimiter(i);
+            return;
+          case "#":
+            flush(Token.ID);
+            state.comment(i + 1);
+            return;
+          case "(":
+          case ")":
+            flush(Token.ID);
+            state.parenthesis(i, c);
+            return;
+          default:
+            store(c);
+            state.transference(i + 1);
         }
-        this.state = state;
-    }
+      },
 
-    /**
-     * Split code by syllables
-     */
-    analyze(text) {
-        this.text = this.purify(text);
-        this.index = 0;
-        this.list = [];
-        this.buffer = '';
+      // For strings
+      string: (i, phase) => {
+        let c = queue(i);
 
-        while (this.index < this.text.length) {
-            this.state.transference(this.index, true);
+        switch (c) {
+          case phase:
+            flush(Token.STRING);
+            state.transference(i + 1, c);
+            return;
+          case "\\":
+            state.extension(i + 1);
+            return;
+          default:
+            store(c);
+            state.string(i + 1, phase);
         }
-        return this.list;
+      },
+
+      // For escape characters
+      extension: (i, phase) => {
+        let c = queue(i);
+
+        store("\\" + c);
+        state.transference(i + 1);
+      },
+
+      // For comments
+      comment: (i, phase) => {
+        let c = queue(i);
+
+        switch (c) {
+          case ";":
+            newline();
+            flush(Token.COMMENT);
+            state.transference(i + 1);
+            return;
+          default:
+            store(c);
+            state.comment(i + 1);
+        }
+      },
+
+      // For parenthesis
+      parenthesis: (i, phase) => {
+        let c = queue(i);
+
+        store(c);
+        if (phase == "(") flush(Token.OPEN);
+        else if (phase == ")") flush(Token.CLOSE);
+        state.transference(i + 1);
+      },
+
+      // For whitespaces and linefeeds
+      delimiter: (i, phase) => {
+        let c = queue(i);
+
+        switch (c) {
+          case ";":
+            newline();
+          case " ":
+            store(c);
+            state.delimiter(i + 1);
+            return;
+          default:
+            flush(Token.SPACE);
+            state.transference(i);
+        }
+      }
+    };
+    this.state = state;
+  }
+
+  /**
+   * Split code by syllables
+   */
+  analyze(text) {
+    this.text = this.purify(text);
+    this.index = 0;
+    this.list = [];
+    this.buffer = "";
+
+    while (this.index < this.text.length) {
+      this.state.transference(this.index, true);
     }
+    return this.list;
+  }
 
-    /**
-     * Remove/unify unsupported characters.
-     */
-    purify(text) {
+  /**
+   * Remove/unify unsupported characters.
+   */
+  purify(text) {
+    // Unify newline formats
+    text = text.replace(/(?:\r\n|\r|\n)/g, ";");
 
-        // Unify newline formats
-        text = text.replace(/(?:\r\n|\r|\n)/g, ';');
+    // Unify whitespace formats
+    text = text.replace(/\s/gi, " ");
 
-        // Unify whitespace formats
-        text = text.replace(/\s/gi, " ");
-
-        return text;
-    }
+    return text;
+  }
 }
 
 export default Lexer;
